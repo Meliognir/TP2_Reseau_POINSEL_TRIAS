@@ -11,7 +11,6 @@ typedef struct HEADER_TAG {
 HEADER *freeBlocksList= NULL;
 
 void * malloc_3is(size_t size) {
-
     HEADER *prev = NULL;
     HEADER *current = freeBlocksList;
 
@@ -64,7 +63,7 @@ int check_3is(HEADER *block) {
 
 
 void free_3is(void *ptr) {
-    HEADER * block = (HEADER*) ptr -1;
+    HEADER * block = (HEADER *) ptr -1;
     if (block==NULL) {
         return;
     }
@@ -79,9 +78,7 @@ int main(void) {
     void* stringTest = malloc_3is(20);
     HEADER * debugBlock = (HEADER *) stringTest -1;
     sprintf((char *) stringTest, "Hello world !\n\0");
-    //sprintf((char *) stringTest-1, "Hello world !\n\0"); //Test for "start seg fault"
-
-    //*stringTest = (__uint32_t *) 42; 
+    //sprintf((char *) stringTest-1, "Hello world !\n\0"); //Testing "start" seg faults
 
 
     printf("%s", stringTest);
