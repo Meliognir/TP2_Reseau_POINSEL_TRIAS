@@ -11,6 +11,25 @@ typedef struct HEADER_TAG {
 HEADER *freeBlocksList= NULL;
 
 void * malloc_3is(size_t size) {
+
+    HEADER *prev = NULL;
+    HEADER *current = freeBlocksList;
+
+    while (current != NULL) {
+        if (current->block_size >= size) {
+            if (prev != NULL) {
+                prev->ptr_next = current->ptr_next;
+            } else {
+                freeBlocksList = current->ptr_next;
+            }
+            current->ptr_next = NULL;
+            return (void*)(current + 1);
+        }
+        prev = current;
+        current = current->ptr_next;
+    }
+
+
     HEADER* new_block = (HEADER *) sbrk(size+sizeof(HEADER)+2*sizeof(long));
     new_block->block_size=size;
     new_block->ptr_next=NULL;
