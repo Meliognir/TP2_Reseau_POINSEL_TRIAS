@@ -11,18 +11,25 @@ typedef struct HEADER_TAG {
 HEADER *freeBlocksList= NULL;
 
 void * malloc_3is(size_t size) {
-    HEADER* new_bloc = (HEADER *) sbrk(size+sizeof(HEADER)+sizeof(long));
+    HEADER* new_bloc;
+    new_bloc = sbrk(size + sizeof(HEADER) + sizeof(long));
     new_bloc->bloc_size=size;
     new_bloc->ptr_next=NULL;
     new_bloc->magic_number=MAGIC_NUMBER;
-    return &(new_bloc->bloc_size);
+    long *end_magic = (long*)((void*)new_bloc + sizeof(HEADER) + size);
+    *end_magic = MAGIC_NUMBER;
+    return (HEADER *)new_bloc+1;
 }
 
-int check_3is(void *block) {
-    HEADER * block2 = block-1;
+int check_3is(HEADER * block) {
 
-    if(block2->magic_number!=(block2->ptr_next)->magic_number){
-        printf("Erreur : corruption mémoire détectée \n)");
+    if(block->magic_number!=MAGIC_NUMBER){
+        printf("Erreur : corruption mémoire détectée (début) \n");
+        return -1;
+    }
+    long *end_magic = (long*)((void *)block + sizeof(HEADER) + block->bloc_size);
+    if (*end_magic != MAGIC_NUMBER) {
+        printf("Erreur : corruption mémoire détectée (fin) \n");
         return -1;
     }
     return 0;
@@ -30,11 +37,13 @@ int check_3is(void *block) {
 
 
 
-void free_3is(HEADER *block) {
+void free_3is(void *ptr) {
+
+    HEADER * block = (HEADER *)ptr-1;
     if (block==NULL) {
         return;
     }
-    int osef = check_3is(block);
+    int test = check_3is(block);
     block->ptr_next=freeBlocksList;
     freeBlocksList=block;
 }
@@ -42,8 +51,8 @@ void free_3is(HEADER *block) {
 
 
 int main(void) {
-    void* stringTest = malloc_3is(3200);
-    sprintf(stringTest, "Hello world !\0");
+    void * stringTest = malloc_3is(1000000);
+    sprintf((char*)stringTest, "Hello world ! \n\0");
 
 
     printf("%s",stringTest);
