@@ -4,25 +4,36 @@
 
 typedef struct HEADER_TAG {
     struct HEADER_TAG * ptr_next; /* pointe sur le prochain bloc libre */
-    size_t bloc_size; /* taille du memory bloc en octets*/
+    size_t block_size; /* taille du memory bloc en octets*/
     long magic_number; /* 0x0123456789ABCDEFL */
 } HEADER;
 
 HEADER *freeBlocksList= NULL;
 
 void * malloc_3is(size_t size) {
-    HEADER* new_bloc = (HEADER *) sbrk(size+sizeof(HEADER)+sizeof(long));
-    new_bloc->bloc_size=size;
-    new_bloc->ptr_next=NULL;
-    new_bloc->magic_number=MAGIC_NUMBER;
-    return &(new_bloc->bloc_size);
+    HEADER* new_block = (HEADER *) sbrk(size+sizeof(HEADER)+2*sizeof(long));
+    new_block->block_size=size;
+    new_block->ptr_next=NULL;
+    new_block->magic_number=MAGIC_NUMBER;
+    void* start_data = (void *) (new_block + 1);
+    long * end_data = (long *) (start_data + size);
+    *end_data = MAGIC_NUMBER; // initialise a second magic number at the end of data
+    return (HEADER*) new_block + 1; // return the address of the future data
 }
 
-int check_3is(void *block) {
-    HEADER * block2 = block-1;
+int check_3is(HEADER *block) {
+    //if((block->ptr_next != NULL) && (block->magic_number != (block->ptr_next)->magic_number)){
 
-    if(block2->magic_number!=(block2->ptr_next)->magic_number){
-        printf("Erreur : corruption mémoire détectée \n)");
+    void* start_data = (void *) (block + 1);
+    long* end_data = (long *) (start_data + block->block_size);
+
+    if(block->magic_number != MAGIC_NUMBER){
+        printf("Erreur : corruption mémoire détectée (DEBUT)\n)");
+        return -1;
+    }
+
+    if (*end_data != MAGIC_NUMBER){
+        printf("Erreur : corruption mémoire détectée (FIN) \n)");
         return -1;
     }
     return 0;
@@ -30,11 +41,12 @@ int check_3is(void *block) {
 
 
 
-void free_3is(HEADER *block) {
+void free_3is(void *ptr) {
+    HEADER * block = (HEADER*) ptr -1;
     if (block==NULL) {
         return;
     }
-    int osef = check_3is(block);
+    int test = check_3is(block);
     block->ptr_next=freeBlocksList;
     freeBlocksList=block;
 }
@@ -42,11 +54,15 @@ void free_3is(HEADER *block) {
 
 
 int main(void) {
-    void* stringTest = malloc_3is(3200);
-    sprintf(stringTest, "Hello world !\0");
+    void* stringTest = malloc_3is(1);
+    HEADER * debugBlock = (HEADER *) stringTest -1;
+    sprintf((char *) stringTest, "Hello world !\n\0");
+    sprintf((char *) stringTest-1, "Hello world !\n\0");
+
+    //*stringTest = (__uint32_t *) 42; 
 
 
-    printf("%s",stringTest);
+    printf("%s", stringTest);
     free_3is(stringTest);
 
     return 0;
