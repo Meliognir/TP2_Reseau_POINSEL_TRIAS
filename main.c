@@ -187,6 +187,24 @@ int free_3is(void *ptr) {
 
 
 
+void printList(/* HEADER* blockList */){
+    if (/* blockList */freeBlocksList == NULL) printf("La liste de blocs est vide.\n\n");
+    else{
+        printf("La liste contient les éléments suivants :\n");
+        HEADER* element = /* blockList */freeBlocksList;
+        printf("(adresse: %p, espace: %i o)", element, element->block_size);
+        element = element->ptr_next;
+        while (element != NULL){
+            printf(" -> (address: %p, espace: %i o)", element, element->block_size);
+            element = element->ptr_next;
+        }
+        printf("\n\n");
+    }
+
+}
+
+
+
 int main(void) {
 
     /*-------------------------------------------------------------------*/
@@ -283,6 +301,7 @@ int main(void) {
 
     /* Display the number of free blocks before allocating memory for a new block of 1000 bytes too : */
     printf("Il y a maintenant %i blocs différents dans la freeBlocksList.\n", listLength(freeBlocksList));
+    printList();
 
     /* Build a new block smaller than 1000 bytes in order to divide and use one of the free blocks available : */
     message = "Création d'un second bloc de taille 1000 octets afin\nde tester la réutilisation du grand block2 disponible dans la liste...\n";
@@ -295,6 +314,7 @@ int main(void) {
     /* Display again the number of free blocks after allocating memory for block3 : */
     printf("Il y a maintenant %i blocs différents dans la freeBlocksList,\njuste après la création du block3 de taille 1000 octets.\n", listLength(freeBlocksList));
     printf("Ce nombre a normalement diminué d'un car le block2\nde 1000 octets a été réutilisé entièrement pour créer le block3.\n\n", listLength(freeBlocksList));
+    printList();
 
     printf("Libération du block3...\n");
     free_3is(block3); 
@@ -310,6 +330,7 @@ int main(void) {
 
     /* Display the number of free blocks before allocating memory for a new SMALLER block : */
     printf("Il y a maintenant %i blocs différents dans la freeBlocksList.\n", listLength(freeBlocksList));
+    printList();
 
     /* Build a new block smaller than 1000 bytes in order to divide and use one of the free blocks available : */
     message = "Création d'un second bloc de taille 800 octets afin\nde tester la division du grand block2 disponible dans la liste...\n";
@@ -322,12 +343,13 @@ int main(void) {
     /* Display again the number of free blocks after creating the SMALLER block : */
     printf("Il y a maintenant %i blocs différents dans la freeBlocksList,\njuste après la création du block4 de taille 800 octets.\n", listLength(freeBlocksList));
     printf("Ce nombre n'a normalement pas changé ici car un morceau de 200\noctets du block3 de 1000 est resté libre donc dans la liste.\n\n", listLength(freeBlocksList));
+    printList();
 
     printf("Libération du block4...\n");
     free_3is(block4); 
 
     printf("Il y a finalement %i blocs libres dans la liste à l'issue de l'exécution\n", listLength(freeBlocksList));
-
+    printList();
     printf("\n\n");
 
 
