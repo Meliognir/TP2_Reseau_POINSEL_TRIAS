@@ -13,6 +13,7 @@ typedef struct HEADER_TAG {
 } HEADER;
 
 
+
 HEADER *freeBlocksList= NULL;
 
 /* Find the length of the list */
@@ -24,16 +25,6 @@ int listLength(HEADER* head) {
         head = head->ptr_next;
     }
     return length;
-}
-
-
-HEADER * blocksFusion_3is(HEADER* block, HEADER* block2) { //  a function called to fuse two adjacent blocks in memory
-    if (block2 == NULL){
-        return block;
-    }
-    block->block_size = block->block_size + sizeof(long) + sizeof(HEADER) + block2->block_size;
-    block->ptr_next = block2->ptr_next;
-    return block;
 }
 
 
@@ -99,7 +90,6 @@ void * malloc_3is(size_t size, int canReuse) {
 
 
 int check_3is(HEADER *block) {
-    //if((block->ptr_next != NULL) && (block->magic_number != (block->ptr_next)->magic_number)){
 
     void* start_data = (void *) (block + 1);
     long* end_data = (long *) (start_data + block->block_size);
@@ -122,6 +112,17 @@ int check_3is(HEADER *block) {
 
 
 
+HEADER * fuseBlocks_3is(HEADER* block, HEADER* block2) { //  a function called to fuse two adjacent blocks in memory
+    if (block2 == NULL){
+        return block;
+    }
+    block->block_size = block->block_size + sizeof(long) + sizeof(HEADER) + block2->block_size;
+    block->ptr_next = block2->ptr_next;
+    return block;
+}
+
+
+
 int free_3is(void *ptr) {
     HEADER * block = (HEADER *) ptr -1;
     if (block==NULL) {
@@ -129,11 +130,50 @@ int free_3is(void *ptr) {
         return 0;
     }
 
-    int testSegFault = check_3is(block);
-    block->ptr_next=freeBlocksList;
-    freeBlocksList=block;
+    /* NOTE : We need to make sure the freeBlockList is sorted by block adress
+    because we need to know if blocks are adjacent in memory in order to decide
+    if we must fuse two blocks. */
 
-    if (testSegFault){
+    /* Insert the block in the list according to its adress */
+
+    if (freeBlocksList == NULL){ // Case of an empty list
+        /* Initialise freeBlocksList with "block" */
+        block->ptr_next=NULL;
+        freeBlocksList=block;
+    }
+    else if (block < freeBlocksList){ // Case where "block" comes first in memory before freeBlocksList
+        /* "block" becomes the new head of the list */
+        block->ptr_next=freeBlocksList;
+        freeBlocksList=block;
+    }
+    else {
+        /* Find where to insert the block */
+
+        /* NOTE : Inserting the block requiring keeping track of the "prevblock"
+        (after which "block" is inserted) to check if fusions of blocks are possible*/
+        HEADER* prevBlock = freeBlocksList;
+
+        while ((prevBlock->ptr_next != NULL)){
+            if (block < prevBlock->ptr_next){
+                break;
+            }
+            prevBlock = prevBlock->ptr_next;
+        }
+
+        /* Insert the block between previous and current blocks */
+        block->ptr_next = prevBlock->ptr_next;
+        prevBlock->ptr_next = block;
+        if (block == prevBlock + 1 + prevBlock->block_size + sizeof(long)) { //check if "prevBlock" and "block" are adjacent
+            fuseBlocks_3is(prevBlock, block);
+        }
+        if (block->ptr_next == block + 1 + block->block_size + sizeof(long)) { //check if "block" and "block->ptr_next" are adjacent
+            fuseBlocks_3is(block, block->ptr_next);
+        }
+
+    }
+
+    int testSegFaults = check_3is(block);
+    if (testSegFaults){
         /* fix the magic numbers for future allocation */
         block->magic_number = MAGIC_NUMBER;
         void* start_data = (void *) (block + 1);
