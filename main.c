@@ -1,10 +1,14 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#define MAGIC_NUMBER 0x0123456789ABCDEFL
+
 #define MAX_MESSAGE_SIZE 128
 #define ALLOW_REUSE 1
 #define FORBID_REUSE 0
+long watchdog;
+
+
 
 typedef struct HEADER_TAG {
     struct HEADER_TAG * ptr_next; /* pointe sur le prochain bloc libre */
@@ -16,8 +20,9 @@ typedef struct HEADER_TAG {
 
 HEADER *freeBlocksList= NULL;
 
-/* Find the length of the list */
 
+
+/* Find the length of the list */
 int listLength(HEADER* head) {
     int length = 0;
     while (head != NULL) {
@@ -38,11 +43,11 @@ HEADER * divideBlock_3is(HEADER* block, size_t size){
     block2->ptr_next = block->ptr_next;
 
     block2->block_size = block->block_size - size - sizeof(HEADER) - sizeof(long);
-    block2->magic_number = MAGIC_NUMBER;
+    block2->magic_number = watchdog;
 
     block->ptr_next = block2;
     block->block_size = size;
-    *end_data = MAGIC_NUMBER;
+    *end_data = watchdog;
 
     return block;
 }
@@ -80,10 +85,10 @@ void * malloc_3is(size_t size, int canReuse) {
     HEADER* new_block = (HEADER *) sbrk(size +sizeof(HEADER)+sizeof(long));
     new_block->block_size=size;
     new_block->ptr_next=NULL;
-    new_block->magic_number=MAGIC_NUMBER;
+    new_block->magic_number=watchdog;
     void* start_data = (void *) (new_block + 1);
     long* end_data = (long *) (start_data + size);
-    *end_data = MAGIC_NUMBER; // initialise a second magic number at the end of data
+    *end_data = watchdog; // initialise a second magic number at the end of data
     return (HEADER*) new_block + 1; // return the address of the future data
 }
 
@@ -94,8 +99,8 @@ int check_3is(HEADER *block) {
     char* start_data = (char*) (block + 1);
     long* end_data = (long *) (start_data + block->block_size);
 
-    int startSegFault = (block->magic_number != MAGIC_NUMBER);
-    int endSegFault = (*end_data != MAGIC_NUMBER);
+    int startSegFault = (block->magic_number != watchdog);
+    int endSegFault = (*end_data != watchdog);
 
     if (startSegFault | endSegFault){
         if (startSegFault){
@@ -177,10 +182,10 @@ int free_3is(void *ptr) {
     int testSegFaults = check_3is(block);
     if (testSegFaults){
         /* fix the magic numbers for future allocation */
-        block->magic_number = MAGIC_NUMBER;
+        block->magic_number = watchdog;
         void* start_data = (void *) (block + 1);
         long* end_data = (long *) (start_data + block->block_size);
-        *end_data = MAGIC_NUMBER;
+        *end_data = watchdog;
         return 1;
     }
 
@@ -211,6 +216,12 @@ void printList(/* HEADER* blockList */){
 
 
 int main(void) {
+
+    printf("Génération d'un watchdog aléatoire :\n");
+    srand(time(NULL));
+    watchdog = (long) rand();
+    printf("Le magic_number est %li\n", watchdog);
+    printf("\n\n");
 
     /*-------------------------------------------------------------------*/
     printf("--------------   Preallocation of memory   -----------------");
