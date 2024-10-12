@@ -31,10 +31,10 @@ int listLength(HEADER* head) {
 
 HEADER * divideBlock_3is(HEADER* block, size_t size){
 
-    void* start_data = (void *) (block + 1);
-    long* end_data = (long *) (block + size);
+    char* start_data = (char *) (block + 1);
+    long* end_data = (long *) (start_data + size);
 
-    HEADER* block2 = (void *) (end_data + sizeof(long));
+    HEADER* block2 = (void *) (end_data + 1);
     block2->ptr_next = block->ptr_next;
 
     block2->block_size = block->block_size - size - sizeof(HEADER) - sizeof(long);
@@ -91,7 +91,7 @@ void * malloc_3is(size_t size, int canReuse) {
 
 int check_3is(HEADER *block) {
 
-    void* start_data = (void *) (block + 1);
+    char* start_data = (char*) (block + 1);
     long* end_data = (long *) (start_data + block->block_size);
 
     int startSegFault = (block->magic_number != MAGIC_NUMBER);
@@ -102,11 +102,11 @@ int check_3is(HEADER *block) {
             printf("Erreur : corruption mémoire détectée (DEBUT)\n");
         }
         if (endSegFault){
-            printf("Erreur : corruption mémoire détectée (FIN) \n");
+            printf("Erreur : corruption mémoire détectée (FIN)\n");
         }
         return -1;
     }
-
+    printf("Le bloc a été libéré avec succès !\n");
     return 0;
 }
 
@@ -145,6 +145,9 @@ int free_3is(void *ptr) {
         /* "block" becomes the new head of the list */
         block->ptr_next=freeBlocksList;
         freeBlocksList=block;
+        if (block->ptr_next == (HEADER*)((long*)((char*) (block + 1) + block->block_size)+ 1)) { //check if "block" and "block->ptr_next" are adjacent
+            fuseBlocks_3is(block, block->ptr_next);
+        }
     }
     else {
         /* Find where to insert the block */
@@ -163,13 +166,12 @@ int free_3is(void *ptr) {
         /* Insert the block between previous and current blocks */
         block->ptr_next = prevBlock->ptr_next;
         prevBlock->ptr_next = block;
-        if (block == prevBlock + 1 + prevBlock->block_size + sizeof(long)) { //check if "prevBlock" and "block" are adjacent
-            fuseBlocks_3is(prevBlock, block);
-        }
-        if (block->ptr_next == block + 1 + block->block_size + sizeof(long)) { //check if "block" and "block->ptr_next" are adjacent
+        if (block->ptr_next == (HEADER*)((long*)((char*) (block + 1) + block->block_size)+ 1)) { //check if "block" and "block->ptr_next" are adjacent
             fuseBlocks_3is(block, block->ptr_next);
         }
-
+        if (block == (HEADER*)((long*)((char*) (prevBlock + 1) + prevBlock->block_size)+ 1)) { //check if "prevBlock" and "block" are adjacent
+            fuseBlocks_3is(prevBlock, block);
+        }
     }
 
     int testSegFaults = check_3is(block);
@@ -189,18 +191,21 @@ int free_3is(void *ptr) {
 
 void printList(/* HEADER* blockList */){
     if (/* blockList */freeBlocksList == NULL) printf("La liste de blocs est vide.\n\n");
+    else if (freeBlocksList->ptr_next == NULL){
+        printf("La liste contient un élément :\n");
+        printf("(adresse : %p, espace : %lu o)\n\n", /* blockList */freeBlocksList, /* blockList */freeBlocksList->block_size);
+    }
     else{
         printf("La liste contient les éléments suivants :\n");
         HEADER* element = /* blockList */freeBlocksList;
-        printf("(adresse: %p, espace: %lu o)", element, element->block_size);
+        printf("(adresse : %p, espace : %lu o)", element, element->block_size);
         element = element->ptr_next;
         while (element != NULL){
-            printf(" -> (address: %p, espace: %lu o)", element, element->block_size);
+            printf("\n-> (adresse : %p, espace : %lu o)", element, element->block_size);
             element = element->ptr_next;
         }
         printf("\n\n");
     }
-
 }
 
 
@@ -214,7 +219,6 @@ int main(void) {
 
 
     char* message = "Hello world !\nUn bloc de mémoire est alloué pour ce message.\n";
-
     void* block1 = malloc_3is(strlen(message)+1, ALLOW_REUSE); // allocate length+1 to include the additional '\0' end character
     HEADER * debugBlock1 = (HEADER *) block1 -1;
     strcpy((char *) block1, message);
@@ -231,10 +235,7 @@ int main(void) {
 
 
     printf("Libération du block1...\n");
-    int testSegFault = free_3is(block1); //free the block and check for seg faults
-    if (!testSegFault){
-        printf("Le bloc a été libéré avec succès !\n");
-    }
+    free_3is(block1); //free the block and check for seg faults
 
     printf("\n\n");
 
@@ -256,7 +257,6 @@ int main(void) {
 
     /* Testing "start" seg faults : */
     message = " Corruption du code précédant la donnée...\n";
-
     void* segFault1 = malloc_3is(strlen(message)+1, FORBID_REUSE);
     strcpy((char *) segFault1-1, message);
     printf("%s", (char *) segFault1);
@@ -266,7 +266,6 @@ int main(void) {
 
     /* Testing "end" seg faults : */
     message = "Corruption du code suivant la donnée...\n";
-
     void* segFault2 = malloc_3is(strlen(message), FORBID_REUSE);
     strcpy((char *) segFault2, message);
     printf("%s", (char *) segFault2);
@@ -276,7 +275,6 @@ int main(void) {
 
     /* Testing both seg faults : */
     message = " Corruption du code précédant et suivant la donnée...\n";
-
     void* segFault3 = malloc_3is(strlen(message)-1, FORBID_REUSE);
     strcpy((char *) segFault3-1, message);
     printf("%s", (char *) segFault3);
@@ -290,10 +288,16 @@ int main(void) {
     /*-------------------------------------------------------------------*/
     printf("\n\n");
 
+    /* NOTE : For the next steps, we need to not let the blocks fuse after they have been freed */
+    message = "Création d'un bloc de séparation pour empêcher la fusion\n des prochains blocs...\n";
+    void* separatorBlock = malloc_3is(100, FORBID_REUSE);
+    HEADER * debugseparatorBlock = (HEADER *) separatorBlock -1;
+    strcpy((char *) separatorBlock, message);
+    printf("%s", (char *) separatorBlock);
+    printf("(Ce séparateur sera libéré à la fin du programme.)\n\n");
 
-    message = "Allocation d'un bloc de 1000 octets, puis libération de ce bloc...\n";
-
-    void* block2 = malloc_3is(1000, ALLOW_REUSE); // allocate length+1 to include the additional '\0' end character
+    message = "Afin de le réutiliser plus tard, allocation d'un bloc\nde 1000 octets puis libération de ce même bloc...\n";
+    void* block2 = malloc_3is(1000, ALLOW_REUSE);
     HEADER * debugBlock2 = (HEADER *) block2 -1;
     strcpy((char *) block2, message);
     printf("%s", (char *) block2);
@@ -305,8 +309,7 @@ int main(void) {
 
     /* Build a new block smaller than 1000 bytes in order to divide and use one of the free blocks available : */
     message = "Création d'un second bloc de taille 1000 octets afin\nde tester la réutilisation du grand block2 disponible dans la liste...\n";
-
-    void* block3 = malloc_3is(1000, ALLOW_REUSE); // allocate length+1 to include the additional '\0' end character
+    void* block3 = malloc_3is(1000, ALLOW_REUSE);
     HEADER * debugBlock3 = (HEADER *) block3 -1;
     strcpy((char *) block3, message);
     printf("%s", (char *) block3);
@@ -329,20 +332,19 @@ int main(void) {
 
 
     /* Display the number of free blocks before allocating memory for a new SMALLER block : */
-    printf("Il y a maintenant %i blocs différents dans la freeBlocksList.\n", listLength(freeBlocksList));
+    printf("Avant allocation, il y a %i blocs différents dans la freeBlocksList.\n", listLength(freeBlocksList));
     printList();
 
     /* Build a new block smaller than 1000 bytes in order to divide and use one of the free blocks available : */
-    message = "Création d'un second bloc de taille 800 octets afin\nde tester la division du grand block2 disponible dans la liste...\n";
-
-    void* block4 = malloc_3is(1000, ALLOW_REUSE); // allocate length+1 to include the additional '\0' end character
+    message = "Création d'un bloc de taille 600 octets afin\nde tester la division du grand block2 disponible dans la liste...\n";
+    void* block4 = malloc_3is(600, ALLOW_REUSE);
     HEADER * debugBlock4 = (HEADER *) block4 -1;
     strcpy((char *) block4, message);
     printf("%s", (char *) block4);
 
     /* Display again the number of free blocks after creating the SMALLER block : */
     printf("Il y a maintenant %i blocs différents dans la freeBlocksList,\njuste après la création du block4 de taille 800 octets.\n", listLength(freeBlocksList));
-    printf("Ce nombre n'a normalement pas changé ici car un morceau de 200\noctets du block3 de 1000 est resté libre donc dans la liste.\n\n");
+    printf("Ce nombre n'a normalement pas changé ici car un morceau de 400\noctets du block3 est resté libre.\n\n");
     printList();
 
     printf("Libération du block4...\n");
@@ -351,6 +353,10 @@ int main(void) {
     printf("Il y a finalement %i blocs libres dans la liste à l'issue de l'exécution\n", listLength(freeBlocksList));
     printList();
     printf("\n\n");
+
+    printf("Libération du bloc séparateur qui empêchait les fusions...\n");
+    free_3is(separatorBlock);
+    printList();
 
     return 0;
 }
