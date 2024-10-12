@@ -213,6 +213,28 @@ void printList(/* HEADER* blockList */){
 int main(void) {
 
     /*-------------------------------------------------------------------*/
+    printf("--------------   Preallocation of memory   -----------------");
+    /*-------------------------------------------------------------------*/
+    printf("\n\n");
+
+    /* We want to limit our calls to sbrk() as much as possible. For this,
+    we can initially allocate 1500 bytes of memory and free it, so we can easily
+    reuse it afterward */
+
+/*
+    char* msg_prealloc = "Preallocation of 1500 bytes of memory...\n";
+    void* preallocation = malloc_3is(1500, ALLOW_REUSE);
+    strcpy((char *) preallocation, msg_prealloc);
+
+    printf("%s", (char *) preallocation);
+    free_3is(preallocation);
+*/
+
+    printf("Décommenter le code (lignes 224 à 231) pour effectuer la préallocation.\nCependant, les tests suivant n'auront pas de sens si de la mémoire a été préallouée.\n");
+    printf("\n\n");
+
+
+    /*-------------------------------------------------------------------*/
     printf("--------   Memory Allocation with our malloc_3is   ---------");
     /*-------------------------------------------------------------------*/
     printf("\n\n");
