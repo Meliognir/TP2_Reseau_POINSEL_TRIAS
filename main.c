@@ -289,7 +289,7 @@ int main(void) {
     printf("\n\n");
 
     /* NOTE : For the next steps, we need to not let the blocks fuse after they have been freed */
-    message = "Création d'un bloc de séparation pour empêcher la fusion\n des prochains blocs...\n";
+    message = "Création d'un bloc de séparation pour empêcher la fusion\ndes prochains blocs...\n";
     void* separatorBlock = malloc_3is(100, FORBID_REUSE);
     HEADER * debugseparatorBlock = (HEADER *) separatorBlock -1;
     strcpy((char *) separatorBlock, message);
@@ -303,8 +303,6 @@ int main(void) {
     printf("%s", (char *) block2);
     free_3is(block2);
 
-    /* Display the number of free blocks before allocating memory for a new block of 1000 bytes too : */
-    printf("Il y a maintenant %i blocs différents dans la freeBlocksList.\n", listLength(freeBlocksList));
     printList();
 
     /* Build a new block smaller than 1000 bytes in order to divide and use one of the free blocks available : */
@@ -315,8 +313,7 @@ int main(void) {
     printf("%s", (char *) block3);
 
     /* Display again the number of free blocks after allocating memory for block3 : */
-    printf("Il y a maintenant %i blocs différents dans la freeBlocksList,\njuste après la création du block3 de taille 1000 octets.\n", listLength(freeBlocksList));
-    printf("Ce nombre a normalement diminué d'un car le block2\nde 1000 octets a été réutilisé entièrement pour créer le block3.\n\n");
+    printf("Le block2 de 1000 octets a été réutilisé entièrement pour créer le block3.\n\n");
     printList();
 
     printf("Libération du block3...\n");
@@ -332,7 +329,7 @@ int main(void) {
 
 
     /* Display the number of free blocks before allocating memory for a new SMALLER block : */
-    printf("Avant allocation, il y a %i blocs différents dans la freeBlocksList.\n", listLength(freeBlocksList));
+    printf("Voici l'état des blocs libres avant réutilisation du block3 :\n");
     printList();
 
     /* Build a new block smaller than 1000 bytes in order to divide and use one of the free blocks available : */
@@ -343,20 +340,18 @@ int main(void) {
     printf("%s", (char *) block4);
 
     /* Display again the number of free blocks after creating the SMALLER block : */
-    printf("Il y a maintenant %i blocs différents dans la freeBlocksList,\njuste après la création du block4 de taille 800 octets.\n", listLength(freeBlocksList));
-    printf("Ce nombre n'a normalement pas changé ici car un morceau de 400\noctets du block3 est resté libre.\n\n");
+    printf("Un morceau de 400 octets du block3 est resté libre dans la liste.\n\n");
     printList();
 
     printf("Libération du block4...\n");
     free_3is(block4); 
-
-    printf("Il y a finalement %i blocs libres dans la liste à l'issue de l'exécution\n", listLength(freeBlocksList));
     printList();
     printf("\n\n");
 
     printf("Libération du bloc séparateur qui empêchait les fusions...\n");
     free_3is(separatorBlock);
     printList();
+    printf("Tous les blocs ont pu être fusionnés.\n");
 
     return 0;
 }
